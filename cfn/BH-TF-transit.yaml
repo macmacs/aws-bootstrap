@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Deploy first bastion host (to run Terraform from)"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    -
+      Label:
+        default: "AWS Configuration"
+      Parameters:
+      - VpcID
+      - SubnetID
+    -
+      Label:
+        default: "EC2 Configuration"
+      Parameters:
+      - InstanceType
+      - KeyName
+      - SSHLocation
+      - LatestAmiId
+      - HTTPProxy
+    -
+      Label:
+        default: "BitBucket configuration"
+      Parameters:
+      - GitSSHPrivateKey
+      - RepoURL
+
+    ParameterLabels:
+      VpcID:
+        default: "VpcID"
+      SubnetID:
+        default: "SubnetID"
+      LatestAmiId:
+        default: "LatestAmiId"
+      HTTPProxy:
+        default: "HTTPProxy"
+      InstanceType:
+        default: "Instance Type"
+      KeyName:
+        default: "Key Pair Name"
+      SSHLocation:
+        default: "SSH IP Address Range"
+      RepoURL:
+        default: "SSH URL to BitBucket config repo"
+      GitSSHPrivateKey:
+        default: "Private SSH key for Bitbucket"
+Parameters:
+    KeyName:
+        Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+        Type: AWS::EC2::KeyPair::KeyName
+        ConstraintDescription: must be the name of an existing EC2 KeyPair.
+    InstanceType:
+        Description: Bastion Host EC2 instance type
+        Type: String
+        Default: t2.small
+        AllowedValues:
+        - t2.nano
+        - t2.micro
+        - t2.small
+        - t2.medium
+        - t2.large
+        - m3.medium
+        - m3.large
+        - m3.xlarge
+        - m3.2xlarge
+        - m4.large
+        - m4.xlarge
+        - m4.2xlarge
+        - m4.4xlarge
+        - m4.10xlarge
+        - c4.large
+        - c4.xlarge
+        - c4.2xlarge
+        - c4.4xlarge
+        - c4.8xlarge
+        - r3.large
+        - r3.xlarge
+        - r3.2xlarge
+        - r3.4xlarge
+        - r3.8xlarge
+        ConstraintDescription: must be a valid EC2 instance type.
+    VpcID:
+      Type: AWS::EC2::VPC::Id
+    SubnetID:
+      Type: AWS::EC2::Subnet::Id
+    SSHLocation:
+        Description: The IP address range (CIDR) that can be used to SSH to the EC2 instances
+        Type: String
+        MinLength: 9
+        MaxLength: 18
+        Default: 10.0.0.0/8
+        AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+        ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    LatestAmiId:
+        Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+        Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    HTTPProxy:
+      Description: IP or DNS name of http proxy (required in ops account to download packages from Internet)
+      Type: String
+    HttpProxyParam:
+      Description: Full string for IP or DNS name of http_proxy parameter
+      Type: String
+    HttpsProxyParam:
+      Description: Full string for IP or DNS name of https_proxy parameter
+      Type: String
+    NoProxyParam:
+      Description: Full string for IP('s) or DNS name(-s) of no_proxy parameter
+      Type: String
+    GitSSHPrivateKey:
+      NoEcho: 'true'
+      Description: Private SSH key for Bitbucket
+      Type: String
+    RepoURL:
+      Type: String
+Resources:
+    BastionRole:
+        Type: AWS::IAM::Role
+        Properties:
+            Path: /
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                -   Effect: Allow
+                    Principal:
+                        Service:
+                        - ec2.amazonaws.com
+                    Action:
+                    - sts:AssumeRole
+            ManagedPolicyArns:
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_autoscaling_elb'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_cw_cwlogs_sns'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_dynamodb'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ec2'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ecr'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_iam'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_s3'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_vpc'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ssm'
+#            RoleName: DevBastionRole
+    BastionInstanceProfile:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Path: /
+            Roles:
+            -   Ref: BastionRole
+#            InstanceProfileName: DevBastionInstanceProfile
+    BastionHost:
+      Type: AWS::EC2::Instance
+      Metadata:
+        AWS::CloudFormation::Init:
+          config:
+            files:
+              /home/ec2-user/.ssh/id_rsa_source:
+                mode: '000600'
+                owner: ec2-user
+                group: ec2-user
+                content: !Ref GitSSHPrivateKey
+      Properties:
+        IamInstanceProfile: !Ref 'BastionInstanceProfile'
+        InstanceType: !Ref 'InstanceType'
+        SecurityGroupIds: [!Ref 'InstanceSecurityGroup']
+        KeyName: !Ref 'KeyName'
+        ImageId: !Ref LatestAmiId
+        SubnetId: !Ref SubnetID
+        Tags:
+          -
+            Key: "Name"
+            Value: !Ref 'AWS::StackName'
+        UserData:
+            'Fn::Base64': !Sub
+            - |
+              #!/usr/bin/env bash
+
+              set -x
+              bash -c "cat <<EOC > /etc/profile.d/http-proxy.sh
+              export http_proxy="${HttpProxyParam}"
+              export https_proxy="${HttpsProxyParam}"
+              export no_proxy="${NoProxyParam}"
+              EOC
+              "
+              source /etc/profile.d/http-proxy.sh
+
+              yum update -y
+              yum  -y install git jq aws-cfn-bootstrap
+              TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d '"' -f 4|cut -c 2-)
+              TERRAFORM_DOWNLOAD_URL="https://releases.hashicorp.com/terraform/${!TERRAFORM_VERSION}/terraform_${!TERRAFORM_VERSION}_linux_amd64.zip"
+              wget "${!TERRAFORM_DOWNLOAD_URL}" -O terraform.zip
+              unzip terraform.zip
+              sudo mv -i terraform /usr/local/bin/
+              rm -rf terraform.zip
+              /opt/aws/bin/cfn-init -v --stack ${StackName} --region ${Region}  --resource BastionHost
+              if grep -q "BEGIN OPENSSH" /home/ec2-user/.ssh/id_rsa_source;
+              then
+                echo -e "-----BEGIN OPENSSH PRIVATE KEY-----\n`cat /home/ec2-user/.ssh/id_rsa_source |cut -c 37- |rev | cut -c 35- |rev |tr ' ' '\n'`\n-----END OPENSSH PRIVATE KEY-----\n" > /home/ec2-user/.ssh/id_rsa
+              else
+                echo -e "-----BEGIN RSA PRIVATE KEY-----\n`cat /home/ec2-user/.ssh/id_rsa_source |cut -c 33- |rev | cut -c 31- |rev |tr ' ' '\n'`\n-----END RSA PRIVATE KEY-----\n" > /home/ec2-user/.ssh/id_rsa
+              fi
+              chmod 00600 /home/ec2-user/.ssh/id_rsa
+              chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
+              #/opt/aws/bin/cfn-signal -e $? --stack ${StackName} --region ${Region}  --resource BastionHost
+              su -l ec2-user -c 'mkdir terraform; pushd terraform; GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"  git clone ${RepoURL}; popd'
+            -
+              StackName: !Ref 'AWS::StackName'
+              Region: !Ref 'AWS::Region'
+              RepoURL: !Ref RepoURL
+              HTTPProxy: !Ref HTTPProxy
+              HttpProxyParam: !Ref HttpProxyParam
+              HttpsProxyParam: !Ref HttpsProxyParam
+              NoProxyParam: !Ref NoProxyParam
+    InstanceSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          VpcId: !Ref VpcID
+          GroupDescription: Enable SSH access via port 22
+          SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Ref 'SSHLocation'
+    TerraformStateBucket:
+      Type: 'AWS::S3::Bucket'
+      Properties:
+        AccessControl: Private
+        BucketName: !Sub 'tf-state-bootstrap-${AWS::AccountId}-ops-${AWS::Region}'
+        VersioningConfiguration:
+          Status: Enabled
+
+    TerraformLockTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+        KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        TableName: !Sub 'tf-state-lock-bootstrap'
+    HttpProxyParameterStore:
+      Type: "AWS::SSM::Parameter"
+      Properties:
+        Name: "/proxy/http"
+        Type: "String"
+        Value: !Ref HttpProxyParam
+    HttpsProxyParameterStore:
+      Type: "AWS::SSM::Parameter"
+      Properties:
+        Name: "/proxy/https"
+        Type: "String"
+        Value: !Ref HttpsProxyParam
+    NoProxyParameterStore:
+      Type: "AWS::SSM::Parameter"
+      Properties:
+        Name: "/proxy/no"
+        Type: "String"
+        Value: !Ref NoProxyParam
+
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created BastionHost instance
+    Value: !Ref  "BastionHost"
+  AZ:
+    Description: Availability Zone of the newly created BastionHost instance
+    Value: !GetAtt [BastionHost, AvailabilityZone]
+  PrivateNS:
+    Description: Private DNSName of the newly created BastionHost instance
+    Value: !GetAtt [BastionHost, PrivateDnsName]
+  PrivateIP:
+    Description: Private IP address of the newly created BastionHost instance
+    Value: !GetAtt [BastionHost, PrivateIp]

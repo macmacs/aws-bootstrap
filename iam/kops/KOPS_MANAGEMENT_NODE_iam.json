@@ -1,0 +1,76 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "IAMIAMFullAccessLimited",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListPolicies",
+                "iam:CreateInstanceProfile",
+                "iam:DeleteInstanceProfile",
+                "iam:GetRole",
+                "iam:UpdateAssumeRolePolicy",
+                "iam:GetPolicy",
+                "iam:GetPolicyVersion",
+                "iam:GetSSHPublicKey",
+                "iam:ListRoles",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:DeleteSSHPublicKey",
+                "iam:AttachRolePolicy",
+                "iam:ListInstanceProfiles",
+                "iam:PassRole",
+                "iam:ListSSHPublicKeys",
+                "iam:DetachRolePolicy",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListRolePolicies",
+                "iam:GetRolePolicy",
+                "iam:GetInstanceProfile",
+                "iam:AddRoleToInstanceProfile",
+                "iam:ListInstanceProfilesForRole",
+                "iam:RemoveRoleFromInstanceProfile"
+            ],
+            "NotResource":[
+            "arn:aws:iam::*:role/ccc-administration/*",
+            "arn:aws:iam::*:user/ccc-administration/*",
+            "arn:aws:iam::*:group/ccc-administration/*"
+            ],
+            "Condition":{
+                "ArnNotEquals": {
+                    "iam:PolicyArn": [
+                        "arn:aws:iam::aws:policy/job-function/SupportUser",
+                        "arn:aws:iam::aws:policy/AmazonEC2FullAccess",
+                        "arn:aws:iam::aws:policy/IAMFullAccess",
+                        "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role",
+                        "arn:aws:iam::aws:policy/CloudWatchFullAccess",
+                        "arn:aws:iam::aws:policy/service-role/AWSCodeStarServiceRole",
+                        "arn:aws:iam::aws:policy/AmazonRoute53DomainsFullAccess",
+                        "arn:aws:iam::aws:policy/AWSCloudTrailFullAccess",
+                        "arn:aws:iam::aws:policy/service-role/AWSConfigRole",
+                        "arn:aws:iam::aws:policy/job-function/SystemAdministrator",
+                        "arn:aws:iam::aws:policy/service-role/AWSMobileHub_ServiceUseOnly",
+                        "arn:aws:iam::aws:policy/AdministratorAccess",
+                        "arn:aws:iam::aws:policy/AmazonElasticMapReduceFullAccess",
+                        "arn:aws:iam::aws:policy/AWSElasticBeanstalkFullAccess",
+                        "arn:aws:iam::aws:policy/AWSOpsWorksRegisterCLI",
+                        "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforDataPipelineRole",
+                        "arn:aws:iam::aws:policy/AmazonElasticTranscoderFullAccess",
+                        "arn:aws:iam::aws:policy/AmazonVPCCrossAccountNetworkInterfaceOperations",
+                        "arn:aws:iam::aws:policy/AmazonVPCFullAccess",
+                        "arn:aws:iam::aws:policy/AmazonZocaloFullAccess",
+                        "arn:aws:iam::aws:policy/job-function/NetworkAdministrator",
+                        "arn:aws:iam::aws:policy/AWSDirectConnectFullAccess",
+                        "arn:aws:iam::aws:policy/AmazonWorkMailFullAccess",
+                        "arn:aws:iam::aws:policy/AWSSupportAccess",
+                        "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole",
+                        "arn:aws:iam::aws:policy/AmazonLexFullAccess",
+                        "arn:aws:iam::aws:policy/AmazonSNSFullAccess",
+                        "arn:aws:iam::aws:policy/AmazonRoute53FullAccess",
+                        "arn:aws:iam::aws:policy/AWSCertificateManagerFullAccess",
+                        "arn:aws:iam::aws:policy/PowerUserAccess"
+                    ]
+                }
+            }
+        }
+    ]
+}

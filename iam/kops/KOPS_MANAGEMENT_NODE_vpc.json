@@ -1,0 +1,63 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "ec2:DeleteDhcpOptions"
+            ],
+            "Resource": [
+                "arn:aws:ec2:*:*:dhcp-options/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "VPC1"
+        },
+        {
+            "Action": [
+                "ec2:DeleteRoute",
+                "ec2:CreateRoute",
+                "ec2:DeleteRouteTable"
+            ],
+            "Resource": [
+                "arn:aws:ec2:*:*:route-table/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "VPC2"
+        },
+        {
+            "Action": [
+                "ec2:DeleteInternetGateway"
+            ],
+            "Resource": "arn:aws:ec2:*:*:internet-gateway/*",
+            "Effect": "Allow",
+            "Sid": "VPC3"
+        },
+        {
+            "Action": [
+                "ec2:AssociateDhcpOptions",
+                "ec2:DeleteSubnet",
+                "ec2:ReplaceRouteTableAssociation",
+                "ec2:CreateNatGateway",
+                "ec2:CreateRouteTable",
+                "ec2:CreateVpc",
+                "ec2:AttachInternetGateway",
+                "ec2:DetachInternetGateway",
+                "ec2:DisassociateRouteTable",
+                "ec2:DisassociateSubnetCidrBlock",
+                "ec2:AssociateVpcCidrBlock",
+                "ec2:AssociateRouteTable",
+                "ec2:DisassociateVpcCidrBlock",
+                "ec2:ModifySubnetAttribute",
+                "ec2:CreateDefaultSubnet",
+                "ec2:CreateInternetGateway",
+                "ec2:AssociateSubnetCidrBlock",
+                "ec2:DeleteNatGateway",
+                "ec2:ModifyVpcAttribute",
+                "ec2:DeleteVpc",
+                "ec2:CreateSubnet"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "VPC4"
+        }
+    ]
+}

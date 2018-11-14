@@ -1,0 +1,98 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CW",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:PutDashboard",
+                "cloudwatch:PutMetricData",
+                "cloudwatch:GetDashboard",
+                "cloudwatch:GetMetricData",
+                "cloudwatch:DeleteAlarms",
+                "cloudwatch:GetMetricStatistics",
+                "cloudwatch:ListMetrics",
+                "cloudwatch:PutMetricAlarm",
+                "cloudwatch:DeleteDashboards",
+                "cloudwatch:DescribeAlarmHistory",
+                "cloudwatch:EnableAlarmActions",
+                "cloudwatch:DisableAlarmActions",
+                "cloudwatch:DescribeAlarmsForMetric",
+                "cloudwatch:ListDashboards",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:SetAlarmState"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CWLogs1",
+            "Effect": "Allow",
+            "Action": "logs:DeleteLogStream",
+            "NotResource": [
+                "arn:aws:logs:*:*:ccc-*"
+            ] 
+        },
+        {
+            "Sid": "CWLogs2",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:DescribeLogGroups",
+                "logs:DeleteLogGroup",
+                "logs:DescribeLogStreams",
+                "logs:DeleteLogStream",
+                "logs:ListTagsLogGroup",
+                "logs:TagLogGroup",
+                "logs:UntagLogGroup"
+            ],
+            "NotResource": [
+                "arn:aws:logs:*:*:ccc-*"
+            ]
+        },
+        {
+            "Sid": "CWLogs3",
+            "Effect": "Allow",
+            "Action": "logs:CreateLogGroup",
+            "NotResource": [
+                "arn:aws:logs:*:*:ccc-*"
+            ]
+        },
+        {
+            "Sid": "SNS1",
+            "Effect": "Allow",
+            "Action": [
+                "sns:CreatePlatformApplication",
+                "sns:SetSMSAttributes",
+                "sns:ListTopics",
+                "sns:GetPlatformApplicationAttributes",
+                "sns:CreatePlatformEndpoint",
+                "sns:Unsubscribe",
+                "sns:GetSubscriptionAttributes",
+                "sns:ListSubscriptions",
+                "sns:CheckIfPhoneNumberIsOptedOut",
+                "sns:OptInPhoneNumber",
+                "sns:DeleteEndpoint",
+                "sns:SetEndpointAttributes",
+                "sns:ListPhoneNumbersOptedOut",
+                "sns:ListEndpointsByPlatformApplication",
+                "sns:GetEndpointAttributes",
+                "sns:SetSubscriptionAttributes",
+                "sns:DeletePlatformApplication",
+                "sns:SetPlatformApplicationAttributes",
+                "sns:ListPlatformApplications",
+                "sns:GetSMSAttributes"
+            ],
+            "NotResource":[
+                "arn:aws:sns:*:*:ccc-*"
+            ]
+        },
+        {
+            "Sid": "SNS2",
+            "Effect": "Allow",
+            "Action": "sns:*",
+            "NotResource":[
+                "arn:aws:sns:*:*:ccc-*"
+            ]  
+        }
+    ]
+}
