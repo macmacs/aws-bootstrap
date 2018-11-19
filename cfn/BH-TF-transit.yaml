@@ -24,7 +24,14 @@ Metadata:
       Parameters:
       - GitSSHPrivateKey
       - RepoURL
-
+    -
+      Label:
+        default: "Proxy configuration"
+      Parameters:
+      - HttpProxyParam
+      - HttpsProxyParam
+      - NoProxyParam
+      
     ParameterLabels:
       VpcID:
         default: "VpcID"
