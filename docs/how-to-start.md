@@ -15,13 +15,13 @@ in project operations AWS accounts.
 
 2. Access to Kentrikos project at repository:
 
-	* clone `kentrikos-tf-aws-bootstrap` repository (alternatively just download it from bitbucket using a browser):
+	* clone `aws-bootstrap` repository (alternatively just download it from Github using a browser):
 
 	```
 	git clone https://github.com/kentrikos/aws-bootstrap.git
 	```
 
-3. A __private__ SSH key allowing read-only access to required repos (please contact bitbucket project admin of CloudHub-Modules)
+3. A __private__ SSH key allowing read-only access to required repos (please contact project admin of Kentrikos)
 
 
 ## STEPS:
@@ -60,7 +60,7 @@ Using IAM's portal, create policies from `aws-bootstrap/iam/kops/` on both your 
 * Choose your subnet (e.g. `ops-test-private-private_a`)
 * Select an SSH key pair you've created in step 2
 * Select and IP range from which connections will be allowed to the BH (do not allow all hosts e.g. 0.0.0.0/0)
-* Paste a private SSH key to bitbucket (see PREREQUISITIES ssh key section)
+* Paste a private SSH key to Github (see PREREQUISITIES ssh key section)
 * Verify that URL to the repository points to the desired product domain and environment (edit the URL if necessary/make sure it contains the forked repo)
 
 6. Clone Repository
