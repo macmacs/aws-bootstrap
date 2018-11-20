@@ -18,7 +18,7 @@ in project operations AWS accounts.
 	* clone `kentrikos-tf-aws-bootstrap` repository (alternatively just download it from bitbucket using a browser):
 
 	```
-	git clone https://github.com/repository_address.git
+	git clone https://github.com/kentrikos/aws-bootstrap.git
 	```
 
 3. A __private__ SSH key allowing read-only access to required repos (please contact bitbucket project admin of CloudHub-Modules)
@@ -28,7 +28,7 @@ in project operations AWS accounts.
 
 1. Create IAM Policies
 
-Using IAM's portal, create policies from `kentrikos-tf-aws-bootstrap/iam/kops/` on both your operations and application account.
+Using IAM's portal, create policies from `aws-bootstrap/iam/kops/` on both your operations and application account.
 
 * For policy names use filenames without `.json` (e.g. `KOPS_MANAGEMENT_NODE_ec2`)
 
@@ -54,7 +54,7 @@ Using IAM's portal, create policies from `kentrikos-tf-aws-bootstrap/iam/kops/` 
 5. Create Bastion Host
 
 * Using AWS console and CloudFormation deploy bastion host (BH) in __operations__ account (a simple EC2 instance that you will use later on to deploy other infra elements with Terraform)
-* Use `kentrikos-tf-aws-bootstrap/BH-TF-ops.yaml` template
+* Use `aws-bootstrap/BH-TF-ops.yaml` template
 * Give it any stack name (e.g. `product-domain-maps-env-test-tf-bh`, note that it will become EC2 instance name as well)
 * Choose your VPC
 * Choose your subnet (e.g. `ops-test-private-private_a`)
@@ -72,6 +72,6 @@ Using IAM's portal, create policies from `kentrikos-tf-aws-bootstrap/iam/kops/` 
 
 * Run Plan/Apply - Manual deployment via terraform ( This creates: S3 bucket and DynamoDB for terraform state, Jenkins incl. configuration, plugins and deployment tools)
 
-8. Check Output - Receive IP Address of Jenkins node and paste it into browser (http://10.1.2.3:8080) to get Jenkins dashboard
+8. Check Output - Receive IP Address of Jenkins node and paste it into browser (i.e. http://10.1.2.3:8080) to get Jenkins dashboard
 
 * The last line is the IP address that works on port 8080 to access Jenkins Core Infra
