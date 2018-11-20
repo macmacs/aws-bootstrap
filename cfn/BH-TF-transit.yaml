@@ -17,7 +17,6 @@ Metadata:
       - KeyName
       - SSHLocation
       - LatestAmiId
-      - HTTPProxy
     -
       Label:
         default: "BitBucket configuration"
@@ -31,7 +30,7 @@ Metadata:
       - HttpProxyParam
       - HttpsProxyParam
       - NoProxyParam
-      
+
     ParameterLabels:
       VpcID:
         default: "VpcID"
@@ -39,8 +38,6 @@ Metadata:
         default: "SubnetID"
       LatestAmiId:
         default: "LatestAmiId"
-      HTTPProxy:
-        default: "HTTPProxy"
       InstanceType:
         default: "Instance Type"
       KeyName:
@@ -101,14 +98,11 @@ Parameters:
     LatestAmiId:
         Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
         Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
-    HTTPProxy:
-      Description: IP or DNS name of http proxy (required in ops account to download packages from Internet)
-      Type: String
     HttpProxyParam:
-      Description: Full string for IP or DNS name of http_proxy parameter
+      Description: Full string for IP or DNS name of http_proxy parameter (required in ops account to download packages from Internet)
       Type: String
     HttpsProxyParam:
-      Description: Full string for IP or DNS name of https_proxy parameter
+      Description: Full string for IP or DNS name of https_proxy parameter (required in ops account to download packages from Internet)
       Type: String
     NoProxyParam:
       Description: Full string for IP('s) or DNS name(-s) of no_proxy parameter
@@ -210,7 +204,6 @@ Resources:
               StackName: !Ref 'AWS::StackName'
               Region: !Ref 'AWS::Region'
               RepoURL: !Ref RepoURL
-              HTTPProxy: !Ref HTTPProxy
               HttpProxyParam: !Ref HttpProxyParam
               HttpsProxyParam: !Ref HttpsProxyParam
               NoProxyParam: !Ref NoProxyParam
