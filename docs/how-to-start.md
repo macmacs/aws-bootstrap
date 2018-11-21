@@ -1,6 +1,6 @@
 # HOW TO START?
 
-This guide describes steps necessary to deploy basic infrastructure for Kubernetes-based environemnt
+This guide describes steps necessary to deploy basic infrastructure for Kubernetes-based environment
 in project operations AWS accounts.
 
 
@@ -39,15 +39,15 @@ Using IAM's portal, create policies from `aws-bootstrap/iam/kops/` on both your 
 
 	> This key will be used in the steps below to ssh to your first bastion host. Please note its name and make sure you have private key stored securely on your laptop. This should be a .pem file
 
-3. Create own product repo or fork from existing example  - tf-aws-product-domain-maps-env-test - (example: cust-tf-aws-rtti-maps-env-test)__
+3. Create own product domain repo or fork from existing example  - tf-aws-product-domain-maps-env-test - (example: cust-tf-aws-rtti-maps-env-test)__
 
 	> See [howto-fork-repo.md](https://github.com/kentrikos/aws-bootstrap/blob/master/docs/howto-fork-repo.md) for more information on Naming Conventions)
 
 4. Update User Variables
 
-* From Repo - ```cd ops/eu-central-1/jenkins-core-infra```
-* Update variables.tf - with s3 bucket, key and dynamodb state (unique string)
-* Update backend.tf with Jenkins information
+* In Product domain repo - ```cd ops/eu-central-1/jenkins-core-infra```
+* Update backend.tf - with s3 bucket, key and dynamodb state (unique string)
+* Update variables.tf with Jenkins information
 
 	> See [naming-conventions.md](https://github.com/kentrikos/aws-bootstrap/blob/master/docs/naming-conventions.md) for more information on Naming Conventions)
 
