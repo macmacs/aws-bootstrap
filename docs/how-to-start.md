@@ -53,7 +53,7 @@ Using IAM's portal, create policies from `aws-bootstrap/iam/kops/` on both your 
 5. Create TF state resources and Bastion Host (BH) on operations/transit account:
 
 * open CloudFormation service in AWS web console
-* use `aws-bootstrap/cfn/operations-account.yaml` template
+* use `aws-bootstrap/cfn/BH-TF-ops.yaml` template
 * name your stack in meaningful way (e.g. `product-domain-maps-env-test-ops`, note that it will become EC2 instance name as well)
 * choose your VPC
 * choose your subnet (e.g. `ops-test-private-private_a`)
