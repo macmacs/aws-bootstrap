@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Create cross-account role and Terraform remote state resources on application account"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    -
+      Label:
+        default: "AWS Configuration"
+      Parameters:
+      - OperationsAWSAccountNumber
+
+Parameters:
+    OperationsAWSAccountNumber:
+      Description: Number of Operations AWS account that will be allowed to assume cross-account role
+      Type: String
+Resources:
+    KopsCrossAccountRole:
+        Type: AWS::IAM::Role
+        Properties:
+            Path: /
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                -   Effect: Allow
+                    Principal:
+                        AWS:
+                        - !Sub 'arn:aws:iam::${OperationsAWSAccountNumber}:root'
+                    Action:
+                    - sts:AssumeRole
+            ManagedPolicyArns:
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_autoscaling_elb'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_cw_cwlogs_sns'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_dynamodb'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ec2'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ecr_route53'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_iam'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_s3'
+            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_vpc'
+            RoleName: KopsCrossAccount
+            MaxSessionDuration: 7200
+    TerraformStateBucket:
+      Type: 'AWS::S3::Bucket'
+      Properties:
+        AccessControl: Private
+        BucketName: !Sub 'tf-state-bootstrap-${AWS::AccountId}-application-${AWS::Region}'
+        VersioningConfiguration:
+          Status: Enabled
+
+    TerraformLockTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+        KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        TableName: !Sub 'tf-state-lock-bootstrap'
+Outputs:
+  KopsCrossAccountRole:
+    Description: ARN of kops admin role that is allowed to be assumed from Operations account
+    Value: !GetAtt KopsCrossAccountRole.Arn
