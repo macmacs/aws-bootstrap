@@ -27,6 +27,12 @@ on a pair of AWS accounts (operations and application).
     * __private__ SSH key allowing read-only access
 
 
+
+## NOTES:
+
+* some Jenkins jobs may require manual confirmation (e.g. for 'terrafor apply' stage), please hover your mouse over the paused stage to see confirmation button
+
+
 ## STEPS:
 
 1. Create IAM Policies for core-infra jenkins and cross-account role:
@@ -99,3 +105,18 @@ terraform apply -input=false tfplan
 
 * run "Install_JX" job
 * in "Manual create domain" go to AWS console/Route53 and create alias to jx ingress LB (FIXME: improve instructions)
+
+11. Manually configure jx after it is installed (using URL and credentials for web dashboard from previous step, FIXME: this should be automated):
+
+* configure HTTP proxy settings for plugins (Manage Jenkins/Manage Plugins/Advanced - please note 'Server' is without 'http://' and port and 'No Proxy' is one entry per line)
+* go to 'Available' plugins tab, update the list ('Check now') and install (without restart) the following plugins: 'SSH Agent', 'AWS Parameter Store Build Wrapper'
+* refresh the 'Installing Plugins/Upgrades' to verify plugins got installed
+* manually create new pipeline job (from Jenkins main dashboard: 'New item/Pipeline', name it 'Kubernetes_Install_On_Application')
+* copy&paste Pipeline script from `jenkins-bootstrap-pipelines` repository, `/application/kubernetes/install/Jenkinsfile`
+* update top `parameters` section with defaults apropriate for your environment
+* save the job
+* add private SSH key for accessing your configuration repository (from Jenkins main dashboard: 'Credentials/System/Global/Add Credentials/SSH Username with private key', Username: 'git', ID: 'bitbucket-key', enter key directly with 1 empty line at the end)
+
+12. Deploy Kubernetes cluster on "application" account:
+
+* run jx job from previous step (double check parameters)
