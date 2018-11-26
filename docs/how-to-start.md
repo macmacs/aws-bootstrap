@@ -77,7 +77,7 @@ on a pair of AWS accounts (operations and application).
 * execute terraform:
 ```
 cd terraform/YOUR_REPO/ops/AWS_REGION/jenkins-core-infra
-terraform init -input=false
+terraform init
 terraform plan -out=tfplan -input=false
 terraform apply -input=false tfplan
 ```
