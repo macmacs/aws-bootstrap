@@ -30,7 +30,7 @@ on a pair of AWS accounts (operations and application).
 
 ## NOTES:
 
-* some Jenkins jobs may require manual confirmation (e.g. for 'terrafor apply' stage), please hover your mouse over the paused stage to see confirmation button
+* some Jenkins jobs may require manual confirmation (e.g. for 'terraform apply' stage), please hover your mouse over the paused stage to see confirmation button
 
 
 ## STEPS:
