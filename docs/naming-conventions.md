@@ -11,7 +11,7 @@
 * please keep in mind S3 bucket name length limit (63 characters) and that multiple TF states (for different infra components) are kept under the same bucket (separated by keys)
 
 ## S3 buckets/keys for kops state:
-* bucket name: `kops-AWS_ACCOUNT_NUMBER-AWS_REGION-PRODUCT_DOMAIN_NAME-ENVIRONMENT_TYPE` (e.g. `kops-123456789012-eu-central-1-demo-test`)
+* bucket name: `kops-AWS_ACCOUNT_NUMBER-AWS_REGION-PRODUCT_DOMAIN_NAME-ENVIRONMENT_TYPE[-ops]` (e.g. `kops-123456789012-eu-central-1-demo-test` or `kops-123456789012-eu-central-1-demo-test-ops')
 
 ## DynamoDB state lock table:
 * `tf-state-lock-bootstrap` (since table names are not global)
