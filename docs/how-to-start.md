@@ -10,8 +10,9 @@ on a pair of AWS accounts (operations and application).
 
 	* operations/default (with VPC and at least 1 private subnet per Availability Zone)
 	* application/advanced (with VPC including 3 public and 3 private subnets and NAT Gateway(s))
-    * please ensure at least /26 subnets everywhere
+    * please ensure at least /27 subnets everywhere (/26 recommended)
 	* VPC peering between the 2 accounts (operations/advanced, including DNS resolution)
+    * currently only scenario where operations account uses HTTP proxy is supported
 	* access to both accounts with AWS console or aws-cli with highly-administrative roles
 
 3. git and ssh clients on your laptop/workstation
