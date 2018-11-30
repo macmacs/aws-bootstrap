@@ -26,6 +26,12 @@ Metadata:
       - HttpProxyParam
       - HttpsProxyParam
       - NoProxyParam
+    -
+      Label:
+        default: "Automation control switches"
+      Parameters:
+      - AutoIAMMode
+      - AutoDeployCoreInfraJenkins
 Parameters:
     KeyName:
         Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
@@ -96,6 +102,37 @@ Parameters:
     RepoURL:
       Description: Full ssh URL to configuration repository (starting with ssh://)
       Type: String
+    AutoIAMMode:
+      Description: BH will be allowed to create IAM Policies on its own (requires IAM administrative permissions when deploying this template, create policies manually otherwise)
+      Type: String
+      Default: true
+      AllowedValues:
+      - true
+      - false
+    AutoDeployCoreInfraJenkins:
+      Description: After deploying Terraform BH, automatically deploy core-infra Jenkins via UserData (run manually via ssh otherwise)
+      Type: String
+      Default: true
+      AllowedValues:
+      - true
+      - false
+    DevTestEnableAllResources:
+      Description: Dev mode, if false, soe resources will not be created
+      Type: String
+      Default: false
+      AllowedValues:
+      - true
+      - false
+
+
+Conditions:
+  IsAutoIAMMode:
+    !Equals [true, !Ref AutoIAMMode]
+  IsAutoDeployCoreInfraJenkins:
+    !Equals [true, !Ref AutoDeployCoreInfraJenkins]
+  IsDevTestEnableAllResources:
+    !Equals [true, !Ref DevTestEnableAllResources]
+
 Resources:
     BastionRole:
         Type: AWS::IAM::Role
@@ -111,23 +148,26 @@ Resources:
                     Action:
                     - sts:AssumeRole
             ManagedPolicyArns:
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_autoscaling_elb'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_cw_cwlogs_sns'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_dynamodb'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ec2'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ecr_route53'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_iam'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_s3'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_vpc'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ssm'
-#            RoleName: DevBastionRole
+            - !If
+               - IsAutoIAMMode
+               - !Ref IAMManagedPolicyForIAMPermissions
+               - [
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_autoscaling_elb', 
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_cw_cwlogs_sns',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_dynamodb',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ec2',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ecr_route53',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_iam',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_s3',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_vpc',
+                   !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ssm'
+                 ]
     BastionInstanceProfile:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Path: /
             Roles:
             -   Ref: BastionRole
-#            InstanceProfileName: DevBastionInstanceProfile
     BastionHost:
       Type: AWS::EC2::Instance
       Metadata:
@@ -200,7 +240,9 @@ Resources:
             FromPort: 22
             ToPort: 22
             CidrIp: !Ref 'SSHLocation'
+
     TerraformStateBucket:
+      Condition: IsDevTestEnableAllResources
       Type: 'AWS::S3::Bucket'
       Properties:
         AccessControl: Private
@@ -209,6 +251,7 @@ Resources:
           Status: Enabled
 
     TerraformLockTable:
+      Condition: IsDevTestEnableAllResources
       Type: 'AWS::DynamoDB::Table'
       Properties:
         AttributeDefinitions:
@@ -221,24 +264,46 @@ Resources:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
         TableName: !Sub 'tf-state-lock-bootstrap'
+
     HttpProxyParameterStore:
+      Condition: IsDevTestEnableAllResources
       Type: "AWS::SSM::Parameter"
       Properties:
         Name: "/proxy/http"
         Type: "String"
         Value: !Ref HttpProxyParam
     HttpsProxyParameterStore:
+      Condition: IsDevTestEnableAllResources
       Type: "AWS::SSM::Parameter"
       Properties:
         Name: "/proxy/https"
         Type: "String"
         Value: !Ref HttpsProxyParam
     NoProxyParameterStore:
+      Condition: IsDevTestEnableAllResources
       Type: "AWS::SSM::Parameter"
       Properties:
         Name: "/proxy/no"
         Type: "String"
         Value: !Ref NoProxyParam
+
+    IAMManagedPolicyForIAMPermissions:
+      Condition: IsAutoIAMMode
+      Type: AWS::IAM::ManagedPolicy
+      Properties: 
+        ManagedPolicyName: "KOPS_MANAGEMENT_NODE_iam_policy_manager"
+        PolicyDocument: 
+          Version: "2012-10-17"
+          Statement: 
+            - 
+              Effect: "Allow"
+              Action: 
+                - "iam:CreatePolicy"
+                - "iam:CreateInstanceProfile"
+                - "iam:CreateRole"
+                - "iam:AttachRolePolicy"
+                - "iam:CreatePolicyVersion"
+              Resource: "*"
 
 Outputs:
   InstanceId:
