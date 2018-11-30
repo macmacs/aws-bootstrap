@@ -8,8 +8,9 @@ on a pair of AWS accounts (operations and application).
 
 1. AWS accounts created (e.g. by requesting through internal IT procedures):
 
-	* operation/default (with VPC and at least 1 private subnet per Availability Zone)
+	* operations/default (with VPC and at least 1 private subnet per Availability Zone)
 	* application/advanced (with VPC including 3 public and 3 private subnets and NAT Gateway(s))
+    * please ensure at least /26 subnets everywhere
 	* VPC peering between the 2 accounts (operations/advanced, including DNS resolution)
 	* access to both accounts with AWS console or aws-cli with highly-administrative roles
 
