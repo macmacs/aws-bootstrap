@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: "Deploy first bastion host (to run Terraform from)"
+Description: "Deploy first bastion host (to run Terraform from) and necessary IAM Policies"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -128,7 +128,7 @@ Parameters:
       - false
     IAMExistingManagedPoliciesPath:
         Type: String
-        Description: Optional path for existing IAM Managed policies that will be attached to the BH (requires AutoIAMMode to be false), leave "/" if unsure
+        Description: Optional path for existing IAM Managed policies that will be attached to the BH, must contain trailing "/" (requires AutoIAMMode to be false), leave "/" if unsure
         Default: /
     IAMNewManagedPoliciesPath:
         Type: String
@@ -142,9 +142,9 @@ Parameters:
       - true
       - false
     DevTestEnableAllResources:
-      Description: Dev mode, if false, soe resources will not be created
+      Description: Dev mode, if false, some central resources (e.g. TF state bucket & table) will not be created to make testing easier, leave true if unsure
       Type: String
-      Default: false
+      Default: true
       AllowedValues:
       - true
       - false
