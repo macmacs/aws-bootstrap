@@ -93,7 +93,7 @@ Parameters:
       Type: AWS::EC2::Subnet::Id
       Description: Subnet in which BH will be deployed
     SSHLocation:
-        Description: The IP address range (CIDR) that will be allowed to SSH to the EC2 instances
+        Description: The IP address range (CIDR) that will be allowed to SSH to the EC2 instances (do not set to all hosts e.g. 0.0.0.0/0)
         Type: String
         MinLength: 9
         MaxLength: 18
