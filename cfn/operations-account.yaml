@@ -38,6 +38,7 @@ Metadata:
       Parameters:
       - AutoIAMMode
       - IAMExistingManagedPoliciesPath
+      - IAMNewManagedPoliciesPath
       - AutoDeployCoreInfraJenkins
       - DevTestEnableAllResources
 Parameters:
@@ -127,8 +128,12 @@ Parameters:
       - false
     IAMExistingManagedPoliciesPath:
         Type: String
-        Description: Optional path for existing IAM Managed policies that will be attached to the BH (requires AutoIAMMode to be true), leave "/" if unsure
+        Description: Optional path for existing IAM Managed policies that will be attached to the BH (requires AutoIAMMode to be false), leave "/" if unsure
         Default: /
+    IAMNewManagedPoliciesPath:
+        Type: String
+        Description: Optional path for new IAM Managed policies that will be attached to the BH (requires AutoIAMMode to be true), leave "/" if unsure
+        Default: "/test/"
     AutoDeployCoreInfraJenkins:
       Description: After deploying Terraform BH, automatically deploy core-infra Jenkins via UserData (run manually via ssh otherwise)
       Type: String
@@ -148,203 +153,636 @@ Parameters:
 Conditions:
   IsAutoIAMMode:
     !Equals [true, !Ref AutoIAMMode]
+  IsNotAutoIAMMode:
+    !Equals [false, !Ref AutoIAMMode]
   IsDevTestEnableAllResources:
     !Equals [true, !Ref DevTestEnableAllResources]
 
 Resources:
-    BastionRole:
-        Type: AWS::IAM::Role
-        Properties:
-            Path: /
-            AssumeRolePolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                -   Effect: Allow
-                    Principal:
-                        Service:
-                        - ec2.amazonaws.com
-                    Action:
-                    - sts:AssumeRole
-            ManagedPolicyArns:
-            - !If
-               - IsAutoIAMMode
-               - !Ref IAMManagedPolicyForIAMPermissions
-               - [
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_autoscaling_elb", 
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_cw_cwlogs_sns",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_dynamodb",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_ec2",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_ecr_route53",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_iam",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_s3",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_vpc",
-                   !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_ssm"
-                 ]
-    BastionInstanceProfile:
-        Type: AWS::IAM::InstanceProfile
-        Properties:
-            Path: /
-            Roles:
-            -   Ref: BastionRole
-    BastionHost:
-      Type: AWS::EC2::Instance
-      Metadata:
-        AWS::CloudFormation::Init:
-          config:
-            files:
-              /home/ec2-user/.ssh/id_rsa_source:
-                mode: '000600'
-                owner: ec2-user
-                group: ec2-user
-                content: !Ref GitSSHPrivateKey
-      Properties:
-        IamInstanceProfile: !Ref 'BastionInstanceProfile'
-        InstanceType: !Ref 'InstanceType'
-        SecurityGroupIds: [!Ref 'InstanceSecurityGroup']
-        KeyName: !Ref 'KeyName'
-        ImageId: !Ref LatestAmiId
-        SubnetId: !Ref SubnetID
-        Tags:
+  BastionRoleIsAutoIAMMode:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref IAMManagedPolicyKopsManagementNodeAutoScalingELB
+        - !Ref IAMManagedPolicyKopsManagementNodeCWCWLogsSSN
+        - !Ref IAMManagedPolicyKopsManagementNodeDynamoDB
+        - !Ref IAMManagedPolicyKopsManagementNodeEC2
+        - !Ref IAMManagedPolicyKopsManagementNodeECR
+        - !Ref IAMManagedPolicyKopsManagementNodeIAM
+        - !Ref IAMManagedPolicyKopsManagementNodeS3
+        - !Ref IAMManagedPolicyKopsManagementNodeSSM
+        - !Ref IAMManagedPolicyKopsManagementNodeVPC
+
+  BastionRoleIsNotAutoIAMMode:
+    Condition: IsNotAutoIAMMode
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_autoscaling_elb"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_cw_cwlogs_sns"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_dynamodb"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_ec2"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_ecr"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_iam"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_s3"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_vpc"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${IAMExistingManagedPoliciesPath}KOPS_MANAGEMENT_NODE_ssm"
+
+  BastionInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - !If [IsAutoIAMMode, !Ref BastionRoleIsAutoIAMMode, !Ref BastionRoleIsNotAutoIAMMode]
+
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /home/ec2-user/.ssh/id_rsa_source:
+              mode: '000600'
+              owner: ec2-user
+              group: ec2-user
+              content: !Ref GitSSHPrivateKey
+    Properties:
+      IamInstanceProfile: !Ref 'BastionInstanceProfile'
+      InstanceType: !Ref 'InstanceType'
+      SecurityGroupIds: [!Ref 'InstanceSecurityGroup']
+      KeyName: !Ref 'KeyName'
+      ImageId: !Ref LatestAmiId
+      SubnetId: !Ref SubnetID
+      Tags:
+        -
+         Key: "Name"
+         Value: !Join ['-', [!Ref 'AWS::StackName', 'tf-bh']]
+      UserData:
+        'Fn::Base64': !Sub
+        - |
+          #!/usr/bin/env bash
+
+          set -x
+          bash -c "cat <<EOC > /etc/profile.d/http-proxy.sh
+          export http_proxy="${HttpProxyParam}"
+          export https_proxy="${HttpsProxyParam}"
+          export no_proxy="${NoProxyParam}"
+          EOC
+          "
+          source /etc/profile.d/http-proxy.sh
+
+          yum update -y
+          yum  -y install git jq aws-cfn-bootstrap
+          TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d '"' -f 4|cut -c 2-)
+          TERRAFORM_DOWNLOAD_URL="https://releases.hashicorp.com/terraform/${!TERRAFORM_VERSION}/terraform_${!TERRAFORM_VERSION}_linux_amd64.zip"
+          wget "${!TERRAFORM_DOWNLOAD_URL}" -O terraform.zip
+          unzip terraform.zip
+          sudo mv -i terraform /usr/local/bin/
+          rm -rf terraform.zip
+          /opt/aws/bin/cfn-init -v --stack ${StackName} --region ${Region}  --resource BastionHost
+          echo "Converting private SSH key..."
+          set +x
+          if grep -q "BEGIN OPENSSH" /home/ec2-user/.ssh/id_rsa_source;
+          then
+            echo -e "-----BEGIN OPENSSH PRIVATE KEY-----\n`cat /home/ec2-user/.ssh/id_rsa_source |cut -c 37- |rev | cut -c 35- |rev |tr ' ' '\n'`\n-----END OPENSSH PRIVATE KEY-----\n" > /home/ec2-user/.ssh/id_rsa
+          else
+            echo -e "-----BEGIN RSA PRIVATE KEY-----\n`cat /home/ec2-user/.ssh/id_rsa_source |cut -c 33- |rev | cut -c 31- |rev |tr ' ' '\n'`\n-----END RSA PRIVATE KEY-----\n" > /home/ec2-user/.ssh/id_rsa
+          fi
+          set -x
+          chmod 00600 /home/ec2-user/.ssh/id_rsa
+          chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
+          #/opt/aws/bin/cfn-signal -e $? --stack ${StackName} --region ${Region}  --resource BastionHost
+          su -l ec2-user -c 'mkdir terraform; pushd terraform; GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"  git clone ${RepoURL}; popd'
+          if [ "${AutoDeployCoreInfraJenkins}" == "true" ];
+          then
+            echo "Auto-deploying core-infra Jenkins as requested..."
+            su -l ec2-user -c '
+            REPO_DIR="$(basename ${RepoURL} .git)"
+            pushd terraform/${!REPO_DIR}/operations/${Region}/jenkins-core-infra
+            terraform init -input=false \
+            -backend-config="region=${Region}" \
+            -backend-config="bucket=tf-state-bootstrap-${AccountId}-ops-${Region}" \
+            -backend-config="key=tf/tf-aws-product-domain-${ProductDomainName}-env-${EnvironmentType}/env/terraform.tfstate"
+
+            terraform plan -var-file="../terraform.tfvars" -out=tfplan -input=false
+
+            #terraform apply -input=false tfplan
+            popd
+            '
+          fi
+        -
+          StackName: !Ref 'AWS::StackName'
+          AccountId: !Ref 'AWS::AccountId'
+          Region: !Ref 'AWS::Region'
+          RepoURL: !Ref RepoURL
+          HttpProxyParam: !Ref HttpProxyParam
+          HttpsProxyParam: !Ref HttpsProxyParam
+          NoProxyParam: !Ref NoProxyParam
+          AutoDeployCoreInfraJenkins: !Ref AutoDeployCoreInfraJenkins
+          ProductDomainName: !Ref ProductDomainName
+          EnvironmentType: !Ref EnvironmentType
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcID
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref 'SSHLocation'
+
+  TerraformStateBucket:
+    Condition: IsDevTestEnableAllResources
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub 'tf-state-bootstrap-${AWS::AccountId}-ops-${AWS::Region}'
+      VersioningConfiguration:
+        Status: Enabled
+
+  TerraformLockTable:
+    Condition: IsDevTestEnableAllResources
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: LockID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: LockID
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: !Sub 'tf-state-lock-bootstrap'
+
+  HttpProxyParameterStore:
+    Condition: IsDevTestEnableAllResources
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: "/proxy/http"
+      Type: "String"
+      Value: !Ref HttpProxyParam
+
+  HttpsProxyParameterStore:
+    Condition: IsDevTestEnableAllResources
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: "/proxy/https"
+      Type: "String"
+      Value: !Ref HttpsProxyParam
+
+  NoProxyParameterStore:
+    Condition: IsDevTestEnableAllResources
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: "/proxy/no"
+      Type: "String"
+      Value: !Ref NoProxyParam
+
+
+##############################################################################
+# IAM Managed Policies
+# (optional, requires appropriate IAM permisions when deploying this template)
+##############################################################################
+
+  IAMManagedPolicyKopsManagementNodeAutoScalingELB:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_autoscaling_elb"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
           -
-           Key: "Name"
-           Value: !Join ['-', [!Ref 'AWS::StackName', 'tf-bh']]
-        UserData:
-            'Fn::Base64': !Sub
-            - |
-              #!/usr/bin/env bash
+            Sid: autoscaling
+            Effect: Allow
+            Action:
+              - autoscaling:*
+            Resource: "*"
+          -
+            Sid: elasticloadbalancing
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:*
+            Resource: "*"
 
-              set -x
-              bash -c "cat <<EOC > /etc/profile.d/http-proxy.sh
-              export http_proxy="${HttpProxyParam}"
-              export https_proxy="${HttpsProxyParam}"
-              export no_proxy="${NoProxyParam}"
-              EOC
-              "
-              source /etc/profile.d/http-proxy.sh
+  IAMManagedPolicyKopsManagementNodeCWCWLogsSSN:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_cw_cwlogs_sns"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: CW
+            Effect: Allow
+            Action:
+              - cloudwatch:PutDashboard
+              - cloudwatch:PutMetricData
+              - cloudwatch:GetDashboard
+              - cloudwatch:GetMetricData
+              - cloudwatch:DeleteAlarms
+              - cloudwatch:GetMetricStatistics
+              - cloudwatch:ListMetrics
+              - cloudwatch:PutMetricAlarm
+              - cloudwatch:DeleteDashboards
+              - cloudwatch:DescribeAlarmHistory
+              - cloudwatch:EnableAlarmActions
+              - cloudwatch:DisableAlarmActions
+              - cloudwatch:DescribeAlarmsForMetric
+              - cloudwatch:ListDashboards
+              - cloudwatch:DescribeAlarms
+              - cloudwatch:SetAlarmState"
+            Resource: "*"
+          -
+            Sid: CWLogs1
+            Effect: Allow
+            Action: logs:DeleteLogStream
+            Resource: "*"
+          -
+            Sid: CWLogs2
+            Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:DescribeLogGroups
+              - logs:DeleteLogGroup
+              - logs:DescribeLogStreams
+              - logs:DeleteLogStream
+              - logs:ListTagsLogGroup
+              - logs:TagLogGroup
+              - logs:UntagLogGroup"
+            Resource: "*"
+          -
+            Sid: CWLogs3
+            Effect: Allow
+            Action: logs:CreateLogGroup
+            Resource: "*"
+          -
+            Sid: SNS1
+            Effect: Allow
+            Action:
+              - sns:CreatePlatformApplication
+              - sns:SetSMSAttributes
+              - sns:ListTopics
+              - sns:GetPlatformApplicationAttributes
+              - sns:CreatePlatformEndpoint
+              - sns:Unsubscribe
+              - sns:GetSubscriptionAttributes
+              - sns:ListSubscriptions
+              - sns:CheckIfPhoneNumberIsOptedOut
+              - sns:OptInPhoneNumber
+              - sns:DeleteEndpoint
+              - sns:SetEndpointAttributes
+              - sns:ListPhoneNumbersOptedOut
+              - sns:ListEndpointsByPlatformApplication
+              - sns:GetEndpointAttributes
+              - sns:SetSubscriptionAttributes
+              - sns:DeletePlatformApplication
+              - sns:SetPlatformApplicationAttributes
+              - sns:ListPlatformApplications
+              - sns:GetSMSAttributes
+            Resource: "*"
 
-              yum update -y
-              yum  -y install git jq aws-cfn-bootstrap
-              TERRAFORM_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep tag_name | cut -d '"' -f 4|cut -c 2-)
-              TERRAFORM_DOWNLOAD_URL="https://releases.hashicorp.com/terraform/${!TERRAFORM_VERSION}/terraform_${!TERRAFORM_VERSION}_linux_amd64.zip"
-              wget "${!TERRAFORM_DOWNLOAD_URL}" -O terraform.zip
-              unzip terraform.zip
-              sudo mv -i terraform /usr/local/bin/
-              rm -rf terraform.zip
-              /opt/aws/bin/cfn-init -v --stack ${StackName} --region ${Region}  --resource BastionHost
-              echo "Converting private SSH key..."
-              set +x
-              if grep -q "BEGIN OPENSSH" /home/ec2-user/.ssh/id_rsa_source;
-              then
-                echo -e "-----BEGIN OPENSSH PRIVATE KEY-----\n`cat /home/ec2-user/.ssh/id_rsa_source |cut -c 37- |rev | cut -c 35- |rev |tr ' ' '\n'`\n-----END OPENSSH PRIVATE KEY-----\n" > /home/ec2-user/.ssh/id_rsa
-              else
-                echo -e "-----BEGIN RSA PRIVATE KEY-----\n`cat /home/ec2-user/.ssh/id_rsa_source |cut -c 33- |rev | cut -c 31- |rev |tr ' ' '\n'`\n-----END RSA PRIVATE KEY-----\n" > /home/ec2-user/.ssh/id_rsa
-              fi
-              set -x
-              chmod 00600 /home/ec2-user/.ssh/id_rsa
-              chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
-              #/opt/aws/bin/cfn-signal -e $? --stack ${StackName} --region ${Region}  --resource BastionHost
-              su -l ec2-user -c 'mkdir terraform; pushd terraform; GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"  git clone ${RepoURL}; popd'
-              if [ "${AutoDeployCoreInfraJenkins}" == "true" ];
-              then
-                echo "Auto-deploying core-infra Jenkins as requested..."
-                su -l ec2-user -c '
-                REPO_DIR="$(basename ${RepoURL} .git)"
-                pushd terraform/${!REPO_DIR}/operations/${Region}/jenkins-core-infra
-                terraform init -input=false \
-                -backend-config="region=${Region}" \
-                -backend-config="bucket=tf-state-bootstrap-${AccountId}-ops-${Region}" \
-                -backend-config="key=tf/tf-aws-product-domain-${ProductDomainName}-env-${EnvironmentType}/env/terraform.tfstate"
+  IAMManagedPolicyKopsManagementNodeDynamoDB:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_dynamodb"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: DynamoDBFullAccess
+            Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:DescribeTable
+              - dynamodb:*"
+            Resource: "*"
 
-                terraform plan -var-file="../terraform.tfvars" -out=tfplan -input=false
+  IAMManagedPolicyKopsManagementNodeEC2:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_ec2"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: EC2InstancesAdmin
+            Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+              - ec2:ModifyVolumeAttribute
+              - ec2:CreateKeyPair
+              - ec2:ResetInstanceAttribute
+              - ec2:DescribeSnapshots
+              - ec2:ReportInstanceStatus
+              - ec2:UpdateSecurityGroupRuleDescriptionsIngress
+              - ec2:DescribeVolumeStatus
+              - ec2:StartInstances
+              - ec2:CreateNetworkInterfacePermission
+              - ec2:RevokeSecurityGroupEgress
+              - ec2:DescribeVolumes
+              - ec2:DescribeExportTasks
+              - ec2:UnassignPrivateIpAddresses
+              - ec2:DescribeKeyPairs
+              - ec2:CreateTags
+              - ec2:DescribeSnapshotAttribute
+              - ec2:DescribeIdFormat
+              - ec2:ModifyNetworkInterfaceAttribute
+              - ec2:RunInstances
+              - ec2:StopInstances
+              - ec2:AssignPrivateIpAddresses
+              - ec2:DescribeVolumeAttribute
+              - ec2:CreateVolume
+              - ec2:DescribeImportSnapshotTasks
+              - ec2:RevokeSecurityGroupIngress
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeImageAttribute
+              - ec2:DescribeSubnets
+              - ec2:AttachVolume
+              - ec2:DisassociateAddress
+              - ec2:DescribeMovingAddresses
+              - ec2:DescribeRegions
+              - ec2:ReleaseHosts
+              - ec2:DescribeAvailabilityZones
+              - ec2:DescribeNetworkInterfaceAttribute
+              - ec2:DeleteLaunchTemplateVersions
+              - ec2:DescribeInstanceStatus
+              - ec2:ReleaseAddress
+              - ec2:RebootInstances
+              - ec2:DeleteLaunchTemplate
+              - ec2:AssignIpv6Addresses
+              - ec2:DescribeBundleTasks
+              - ec2:DescribeIdentityIdFormat
+              - ec2:DescribeClassicLinkInstances
+              - ec2:DescribeSecurityGroups
+              - ec2:CreateLaunchTemplate
+              - ec2:DescribeVpcs
+              - ec2:AllocateHosts
+              - ec2:DescribeStaleSecurityGroups
+              - ec2:UnmonitorInstances
+              - ec2:MonitorInstances
+              - ec2:DescribePlacementGroups
+              - ec2:DescribeInternetGateways
+              - ec2:DeleteVolume
+              - ec2:CreatePlacementGroup
+              - ec2:DescribeAccountAttributes
+              - ec2:UnassignIpv6Addresses
+              - ec2:DescribeNetworkInterfacePermissions
+              - ec2:DescribeNetworkAcls
+              - ec2:DescribeRouteTables
+              - ec2:DescribeEgressOnlyInternetGateways
+              - ec2:DetachVolume
+              - ec2:ModifyVolume
+              - ec2:ResetImageAttribute
+              - ec2:UpdateSecurityGroupRuleDescriptionsEgress
+              - ec2:DescribeLaunchTemplates
+              - ec2:ResetNetworkInterfaceAttribute
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribePrefixLists
+              - ec2:DescribeInstanceCreditSpecifications
+              - ec2:AssociateAddress
+              - ec2:DeleteKeyPair
+              - ec2:DescribeAddresses
+              - ec2:DeleteTags
+              - ec2:DescribeInstanceAttribute
+              - ec2:DescribeDhcpOptions
+              - ec2:DeleteNetworkInterfacePermission
+              - ec2:DescribeNetworkInterfaces
+              - ec2:CreateSecurityGroup
+              - ec2:ModifyInstanceAttribute
+              - ec2:AuthorizeSecurityGroupEgress
+              - ec2:TerminateInstances
+              - ec2:DetachNetworkInterface
+              - ec2:DeletePlacementGroup
+              - ec2:DescribeIamInstanceProfileAssociations
+              - ec2:DescribeLaunchTemplateVersions
+              - ec2:DescribeImportImageTasks
+              - ec2:DescribeNatGateways
+              - ec2:DescribeCustomerGateways
+              - ec2:AllocateAddress
+              - ec2:CreateLaunchTemplateVersion
+              - ec2:DescribeHosts
+              - ec2:DescribeImages
+              - ec2:DescribeSecurityGroupReferences
+              - ec2:DeleteSecurityGroup
+              - ec2:ModifyLaunchTemplate
+              - ec2:AttachNetworkInterface
+              - ec2:DescribeConversionTasks
+              - ec2:DescribeReservedInstancesOfferings
+              - ec2:ImportKeyPair
+              - ec2:DescribeVpcAttribute
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:DeleteNetworkInterface
+              - ec2:CreateEgressOnlyInternetGateway
+              - ec2:DeleteEgressOnlyInternetGateway
+              - ec2:DescribeTags
+            Resource: "*"
 
-                #terraform apply -input=false tfplan
-                popd
-                '
-              fi
-            -
-              StackName: !Ref 'AWS::StackName'
-              AccountId: !Ref 'AWS::AccountId'
-              Region: !Ref 'AWS::Region'
-              RepoURL: !Ref RepoURL
-              HttpProxyParam: !Ref HttpProxyParam
-              HttpsProxyParam: !Ref HttpsProxyParam
-              NoProxyParam: !Ref NoProxyParam
-              AutoDeployCoreInfraJenkins: !Ref AutoDeployCoreInfraJenkins
-              ProductDomainName: !Ref ProductDomainName
-              EnvironmentType: !Ref EnvironmentType
-    InstanceSecurityGroup:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-          VpcId: !Ref VpcID
-          GroupDescription: Enable SSH access via port 22
-          SecurityGroupIngress:
-          - IpProtocol: tcp
-            FromPort: 22
-            ToPort: 22
-            CidrIp: !Ref 'SSHLocation'
+  IAMManagedPolicyKopsManagementNodeECR:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_ecr"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: kopsECRFullAccess
+            Effect: Allow
+            Action:
+              - ecr:CreateRepository
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetAuthorizationToken
+              - ecr:UploadLayerPart
+              - ecr:BatchDeleteImage
+              - ecr:ListImages
+              - ecr:DeleteRepository
+              - ecr:PutImage
+              - ecr:SetRepositoryPolicy
+              - ecr:BatchGetImage
+              - ecr:CompleteLayerUpload
+              - ecr:DescribeImages
+              - ecr:DescribeRepositories
+              - ecr:InitiateLayerUpload
+              - ecr:DeleteRepositoryPolicy
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetRepositoryPolicy
+            Resource: "*"
 
-    TerraformStateBucket:
-      Condition: IsDevTestEnableAllResources
-      Type: 'AWS::S3::Bucket'
-      Properties:
-        AccessControl: Private
-        BucketName: !Sub 'tf-state-bootstrap-${AWS::AccountId}-ops-${AWS::Region}'
-        VersioningConfiguration:
-          Status: Enabled
-    TerraformLockTable:
-      Condition: IsDevTestEnableAllResources
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        AttributeDefinitions:
-        - AttributeName: LockID
-          AttributeType: S
-        KeySchema:
-        - AttributeName: LockID
-          KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        TableName: !Sub 'tf-state-lock-bootstrap'
+  IAMManagedPolicyKopsManagementNodeIAM:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_iam"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: IAMIAMFullAccessLimited
+            Effect: Allow
+            Action:
+              - iam:ListPolicies
+              - iam:CreateInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:GetRole
+              - iam:UpdateAssumeRolePolicy
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - iam:GetSSHPublicKey
+              - iam:ListRoles
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:DeleteSSHPublicKey
+              - iam:AttachRolePolicy
+              - iam:ListInstanceProfiles
+              - iam:PassRole
+              - iam:ListSSHPublicKeys
+              - iam:DetachRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:ListRolePolicies
+              - iam:GetRolePolicy
+              - iam:GetInstanceProfile
+              - iam:AddRoleToInstanceProfile
+              - iam:ListInstanceProfilesForRole
+              - iam:RemoveRoleFromInstanceProfile
+            Resource: "*"
 
-    HttpProxyParameterStore:
-      Condition: IsDevTestEnableAllResources
-      Type: "AWS::SSM::Parameter"
-      Properties:
-        Name: "/proxy/http"
-        Type: "String"
-        Value: !Ref HttpProxyParam
-    HttpsProxyParameterStore:
-      Condition: IsDevTestEnableAllResources
-      Type: "AWS::SSM::Parameter"
-      Properties:
-        Name: "/proxy/https"
-        Type: "String"
-        Value: !Ref HttpsProxyParam
-    NoProxyParameterStore:
-      Condition: IsDevTestEnableAllResources
-      Type: "AWS::SSM::Parameter"
-      Properties:
-        Name: "/proxy/no"
-        Type: "String"
-        Value: !Ref NoProxyParam
+  IAMManagedPolicyKopsManagementNodeS3:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_s3"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: S3AmazonS3FullAccessLimited
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListAllMyBuckets
+              - s3:GetBucketLocation
+              - s3:PutBucketTagging
+              - s3:CreateBucket
+              - s3:ListBucket
+              - s3:DeleteObject
+              - s3:HeadBucket
+              - s3:DeleteBucket
+              - s3:PutBucketVersioning
+              - s3:GetBucketCors
+            Resource: "*"
 
-    IAMManagedPolicyForIAMPermissions:
-      Condition: IsAutoIAMMode
-      Type: AWS::IAM::ManagedPolicy
-      Properties: 
-        ManagedPolicyName: "KOPS_MANAGEMENT_NODE_iam_policy_manager"
-        PolicyDocument: 
-          Version: "2012-10-17"
-          Statement: 
-            - 
-              Effect: "Allow"
-              Action: 
-                - "iam:CreatePolicy"
-                - "iam:CreateInstanceProfile"
-                - "iam:CreateRole"
-                - "iam:AttachRolePolicy"
-                - "iam:CreatePolicyVersion"
-              Resource: "*"
+  IAMManagedPolicyKopsManagementNodeSSM:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_ssm"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - ssm:Describe*
+              - ssm:Get*
+              - ssm:List*
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeVPC:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_vpc"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: VPC1
+            Effect: Allow
+            Action:
+              - ec2:DeleteDhcpOptions
+            Resource: "arn:aws:ec2:*:*:dhcp-options/*"
+          -
+            Sid: VPC2
+            Effect: Allow
+            Action:
+              - ec2:DeleteRoute
+              - ec2:CreateRoute
+              - ec2:DeleteRouteTable"
+            Resource: "arn:aws:ec2:*:*:route-table/*"
+          -
+            Sid: VPC3
+            Effect: Allow
+            Action:
+              - ec2:DeleteInternetGateway"
+            Resource: "arn:aws:ec2:*:*:internet-gateway/*"
+          -
+            Sid: "VPC4"
+            Effect: Allow
+            Action:
+              - ec2:AssociateDhcpOptions
+              - ec2:DeleteSubnet
+              - ec2:ReplaceRouteTableAssociation
+              - ec2:CreateNatGateway
+              - ec2:CreateRouteTable
+              - ec2:CreateVpc
+              - ec2:AttachInternetGateway
+              - ec2:DetachInternetGateway
+              - ec2:DisassociateRouteTable
+              - ec2:DisassociateSubnetCidrBlock
+              - ec2:AssociateVpcCidrBlock
+              - ec2:AssociateRouteTable
+              - ec2:DisassociateVpcCidrBlock
+              - ec2:ModifySubnetAttribute
+              - ec2:CreateDefaultSubnet
+              - ec2:CreateInternetGateway
+              - ec2:AssociateSubnetCidrBlock
+              - ec2:DeleteNatGateway
+              - ec2:ModifyVpcAttribute
+              - ec2:DeleteVpc
+              - ec2:CreateSubnet"
+            Resource: "*"
+##############################################################################
+
 
 Outputs:
   InstanceId:
