@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: "Create cross-account role and Terraform remote state resources on application account"
+Description: "Create cross-account role (+ optionally, IAM Policies) and Terraform remote state resources on application account"
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -7,59 +7,537 @@ Metadata:
       Label:
         default: "AWS Configuration"
       Parameters:
-      - OperationsAWSAccountNumber
+        - OperationsAWSAccountNumber
+    -
+      Label:
+        default: "Automation control switches"
+      Parameters:
+        - AutoIAMMode
+        - IAMExistingManagedPoliciesPath
+        - IAMNewManagedPoliciesPath
+        - DevTestEnableAllResources
+
 
 Parameters:
     OperationsAWSAccountNumber:
       Description: Number of Operations AWS account that will be allowed to assume cross-account role
       Type: String
-Resources:
-    KopsCrossAccountRole:
-        Type: AWS::IAM::Role
-        Properties:
-            Path: /
-            AssumeRolePolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                -   Effect: Allow
-                    Principal:
-                        AWS:
-                        - !Sub 'arn:aws:iam::${OperationsAWSAccountNumber}:root'
-                    Action:
-                    - sts:AssumeRole
-            ManagedPolicyArns:
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_autoscaling_elb'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_cw_cwlogs_sns'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_dynamodb'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ec2'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ecr_route53'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_iam'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_s3'
-            - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_vpc'
-            RoleName: KopsCrossAccount
-            MaxSessionDuration: 7200
-    TerraformStateBucket:
-      Type: 'AWS::S3::Bucket'
-      Properties:
-        AccessControl: Private
-        BucketName: !Sub 'tf-state-bootstrap-${AWS::AccountId}-application-${AWS::Region}'
-        VersioningConfiguration:
-          Status: Enabled
+    AutoIAMMode:
+      Description: IAM Policies will be created automatically (requires IAM administrative permissions when deploying this template, please pre-create policies manually otherwise)
+      Type: String
+      Default: true
+      AllowedValues:
+        - true
+        - false
+    IAMExistingManagedPoliciesPath:
+        Type: String
+        Description: Optional path for existing IAM Managed policies that will be attached to cross-account role, must contain trailing "/" (requires AutoIAMMode to be false), leave "/" if unsure
+        Default: /
+    IAMNewManagedPoliciesPath:
+        Type: String
+        Description: Optional path for new IAM Managed policies that will be attached to cross-account role (requires AutoIAMMode to be true), leave "/" if unsure
+        Default: "/"
+    DevTestEnableAllResources:
+      Description: Dev mode, if false, some central resources (e.g. TF state bucket & table) will not be created to make testing easier, leave true if unsure
+      Type: String
+      Default: true
+      AllowedValues:
+      - true
+      - false
 
-    TerraformLockTable:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        AttributeDefinitions:
+
+Conditions:
+  IsAutoIAMMode:
+    !Equals [true, !Ref AutoIAMMode]
+  IsNotAutoIAMMode:
+    !Equals [false, !Ref AutoIAMMode]
+  IsDevTestEnableAllResources:
+    !Equals [true, !Ref DevTestEnableAllResources]
+
+
+Resources:
+  KopsCrossAccountRoleIsAutoIAMMode:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS:
+            - !Sub 'arn:aws:iam::${OperationsAWSAccountNumber}:root'
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref IAMManagedPolicyKopsManagementNodeAutoScalingELB
+        - !Ref IAMManagedPolicyKopsManagementNodeCWCWLogsSSN
+        - !Ref IAMManagedPolicyKopsManagementNodeDynamoDB
+        - !Ref IAMManagedPolicyKopsManagementNodeEC2
+        - !Ref IAMManagedPolicyKopsManagementNodeECR
+        - !Ref IAMManagedPolicyKopsManagementNodeIAM
+        - !Ref IAMManagedPolicyKopsManagementNodeS3
+        - !Ref IAMManagedPolicyKopsManagementNodeVPC
+      RoleName: KopsCrossAccount
+      MaxSessionDuration: 7200
+
+  KopsCrossAccountRoleIsNotAutoIAMMode:
+    Condition: IsNotAutoIAMMode
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS:
+            - !Sub 'arn:aws:iam::${OperationsAWSAccountNumber}:root'
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_autoscaling_elb'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_cw_cwlogs_sns'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_dynamodb'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ec2'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_ecr'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_iam'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_s3'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/customer/KOPS_MANAGEMENT_NODE_vpc'
+      RoleName: KopsCrossAccount
+      MaxSessionDuration: 7200
+
+  TerraformStateBucket:
+    Condition: IsDevTestEnableAllResources
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub 'tf-state-bootstrap-${AWS::AccountId}-application-${AWS::Region}'
+      VersioningConfiguration:
+        Status: Enabled
+
+  TerraformLockTable:
+    Condition: IsDevTestEnableAllResources
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
         - AttributeName: LockID
           AttributeType: S
-        KeySchema:
+      KeySchema:
         - AttributeName: LockID
           KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        TableName: !Sub 'tf-state-lock-bootstrap'
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: !Sub 'tf-state-lock-bootstrap'
+
+
+##############################################################################
+# IAM Managed Policies
+# (optional, requires appropriate IAM permisions when deploying this template)
+##############################################################################
+
+  IAMManagedPolicyKopsManagementNodeAutoScalingELB:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_autoscaling_elb"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: autoscaling
+            Effect: Allow
+            Action:
+              - autoscaling:*
+            Resource: "*"
+          -
+            Sid: elasticloadbalancing
+            Effect: Allow
+            Action:
+              - elasticloadbalancing:*
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeCWCWLogsSSN:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_cw_cwlogs_sns"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: CW
+            Effect: Allow
+            Action:
+              - cloudwatch:PutDashboard
+              - cloudwatch:PutMetricData
+              - cloudwatch:GetDashboard
+              - cloudwatch:GetMetricData
+              - cloudwatch:DeleteAlarms
+              - cloudwatch:GetMetricStatistics
+              - cloudwatch:ListMetrics
+              - cloudwatch:PutMetricAlarm
+              - cloudwatch:DeleteDashboards
+              - cloudwatch:DescribeAlarmHistory
+              - cloudwatch:EnableAlarmActions
+              - cloudwatch:DisableAlarmActions
+              - cloudwatch:DescribeAlarmsForMetric
+              - cloudwatch:ListDashboards
+              - cloudwatch:DescribeAlarms
+              - cloudwatch:SetAlarmState"
+            Resource: "*"
+          -
+            Sid: CWLogs1
+            Effect: Allow
+            Action: logs:DeleteLogStream
+            Resource: "*"
+          -
+            Sid: CWLogs2
+            Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:DescribeLogGroups
+              - logs:DeleteLogGroup
+              - logs:DescribeLogStreams
+              - logs:DeleteLogStream
+              - logs:ListTagsLogGroup
+              - logs:TagLogGroup
+              - logs:UntagLogGroup"
+            Resource: "*"
+          -
+            Sid: CWLogs3
+            Effect: Allow
+            Action: logs:CreateLogGroup
+            Resource: "*"
+          -
+            Sid: SNS1
+            Effect: Allow
+            Action:
+              - sns:CreatePlatformApplication
+              - sns:SetSMSAttributes
+              - sns:ListTopics
+              - sns:GetPlatformApplicationAttributes
+              - sns:CreatePlatformEndpoint
+              - sns:Unsubscribe
+              - sns:GetSubscriptionAttributes
+              - sns:ListSubscriptions
+              - sns:CheckIfPhoneNumberIsOptedOut
+              - sns:OptInPhoneNumber
+              - sns:DeleteEndpoint
+              - sns:SetEndpointAttributes
+              - sns:ListPhoneNumbersOptedOut
+              - sns:ListEndpointsByPlatformApplication
+              - sns:GetEndpointAttributes
+              - sns:SetSubscriptionAttributes
+              - sns:DeletePlatformApplication
+              - sns:SetPlatformApplicationAttributes
+              - sns:ListPlatformApplications
+              - sns:GetSMSAttributes
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeDynamoDB:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_dynamodb"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: DynamoDBFullAccess
+            Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:DescribeTable
+              - dynamodb:*"
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeEC2:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_ec2"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: EC2InstancesAdmin
+            Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+              - ec2:ModifyVolumeAttribute
+              - ec2:CreateKeyPair
+              - ec2:ResetInstanceAttribute
+              - ec2:DescribeSnapshots
+              - ec2:ReportInstanceStatus
+              - ec2:UpdateSecurityGroupRuleDescriptionsIngress
+              - ec2:DescribeVolumeStatus
+              - ec2:StartInstances
+              - ec2:CreateNetworkInterfacePermission
+              - ec2:RevokeSecurityGroupEgress
+              - ec2:DescribeVolumes
+              - ec2:DescribeExportTasks
+              - ec2:UnassignPrivateIpAddresses
+              - ec2:DescribeKeyPairs
+              - ec2:CreateTags
+              - ec2:DescribeSnapshotAttribute
+              - ec2:DescribeIdFormat
+              - ec2:ModifyNetworkInterfaceAttribute
+              - ec2:RunInstances
+              - ec2:StopInstances
+              - ec2:AssignPrivateIpAddresses
+              - ec2:DescribeVolumeAttribute
+              - ec2:CreateVolume
+              - ec2:DescribeImportSnapshotTasks
+              - ec2:RevokeSecurityGroupIngress
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeImageAttribute
+              - ec2:DescribeSubnets
+              - ec2:AttachVolume
+              - ec2:DisassociateAddress
+              - ec2:DescribeMovingAddresses
+              - ec2:DescribeRegions
+              - ec2:ReleaseHosts
+              - ec2:DescribeAvailabilityZones
+              - ec2:DescribeNetworkInterfaceAttribute
+              - ec2:DeleteLaunchTemplateVersions
+              - ec2:DescribeInstanceStatus
+              - ec2:ReleaseAddress
+              - ec2:RebootInstances
+              - ec2:DeleteLaunchTemplate
+              - ec2:AssignIpv6Addresses
+              - ec2:DescribeBundleTasks
+              - ec2:DescribeIdentityIdFormat
+              - ec2:DescribeClassicLinkInstances
+              - ec2:DescribeSecurityGroups
+              - ec2:CreateLaunchTemplate
+              - ec2:DescribeVpcs
+              - ec2:AllocateHosts
+              - ec2:DescribeStaleSecurityGroups
+              - ec2:UnmonitorInstances
+              - ec2:MonitorInstances
+              - ec2:DescribePlacementGroups
+              - ec2:DescribeInternetGateways
+              - ec2:DeleteVolume
+              - ec2:CreatePlacementGroup
+              - ec2:DescribeAccountAttributes
+              - ec2:UnassignIpv6Addresses
+              - ec2:DescribeNetworkInterfacePermissions
+              - ec2:DescribeNetworkAcls
+              - ec2:DescribeRouteTables
+              - ec2:DescribeEgressOnlyInternetGateways
+              - ec2:DetachVolume
+              - ec2:ModifyVolume
+              - ec2:ResetImageAttribute
+              - ec2:UpdateSecurityGroupRuleDescriptionsEgress
+              - ec2:DescribeLaunchTemplates
+              - ec2:ResetNetworkInterfaceAttribute
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribePrefixLists
+              - ec2:DescribeInstanceCreditSpecifications
+              - ec2:AssociateAddress
+              - ec2:DeleteKeyPair
+              - ec2:DescribeAddresses
+              - ec2:DeleteTags
+              - ec2:DescribeInstanceAttribute
+              - ec2:DescribeDhcpOptions
+              - ec2:DeleteNetworkInterfacePermission
+              - ec2:DescribeNetworkInterfaces
+              - ec2:CreateSecurityGroup
+              - ec2:ModifyInstanceAttribute
+              - ec2:AuthorizeSecurityGroupEgress
+              - ec2:TerminateInstances
+              - ec2:DetachNetworkInterface
+              - ec2:DeletePlacementGroup
+              - ec2:DescribeIamInstanceProfileAssociations
+              - ec2:DescribeLaunchTemplateVersions
+              - ec2:DescribeImportImageTasks
+              - ec2:DescribeNatGateways
+              - ec2:DescribeCustomerGateways
+              - ec2:AllocateAddress
+              - ec2:CreateLaunchTemplateVersion
+              - ec2:DescribeHosts
+              - ec2:DescribeImages
+              - ec2:DescribeSecurityGroupReferences
+              - ec2:DeleteSecurityGroup
+              - ec2:ModifyLaunchTemplate
+              - ec2:AttachNetworkInterface
+              - ec2:DescribeConversionTasks
+              - ec2:DescribeReservedInstancesOfferings
+              - ec2:ImportKeyPair
+              - ec2:DescribeVpcAttribute
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:DeleteNetworkInterface
+              - ec2:CreateEgressOnlyInternetGateway
+              - ec2:DeleteEgressOnlyInternetGateway
+              - ec2:DescribeTags
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeECR:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_ecr"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: kopsECRFullAccess
+            Effect: Allow
+            Action:
+              - ecr:CreateRepository
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetAuthorizationToken
+              - ecr:UploadLayerPart
+              - ecr:BatchDeleteImage
+              - ecr:ListImages
+              - ecr:DeleteRepository
+              - ecr:PutImage
+              - ecr:SetRepositoryPolicy
+              - ecr:BatchGetImage
+              - ecr:CompleteLayerUpload
+              - ecr:DescribeImages
+              - ecr:DescribeRepositories
+              - ecr:InitiateLayerUpload
+              - ecr:DeleteRepositoryPolicy
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetRepositoryPolicy
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeIAM:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_iam"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: IAMIAMFullAccessLimited
+            Effect: Allow
+            Action:
+              - iam:ListPolicies
+              - iam:CreateInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:GetRole
+              - iam:UpdateAssumeRolePolicy
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - iam:GetSSHPublicKey
+              - iam:ListRoles
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:DeleteSSHPublicKey
+              - iam:AttachRolePolicy
+              - iam:ListInstanceProfiles
+              - iam:PassRole
+              - iam:ListSSHPublicKeys
+              - iam:DetachRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:ListRolePolicies
+              - iam:GetRolePolicy
+              - iam:GetInstanceProfile
+              - iam:AddRoleToInstanceProfile
+              - iam:ListInstanceProfilesForRole
+              - iam:RemoveRoleFromInstanceProfile
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeS3:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_s3"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: S3AmazonS3FullAccessLimited
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListAllMyBuckets
+              - s3:GetBucketLocation
+              - s3:PutBucketTagging
+              - s3:CreateBucket
+              - s3:ListBucket
+              - s3:DeleteObject
+              - s3:HeadBucket
+              - s3:DeleteBucket
+              - s3:PutBucketVersioning
+              - s3:GetBucketCors
+            Resource: "*"
+
+  IAMManagedPolicyKopsManagementNodeVPC:
+    Condition: IsAutoIAMMode
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: "KOPS_MANAGEMENT_NODE_vpc"
+      Path: !Ref IAMNewManagedPoliciesPath
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: VPC1
+            Effect: Allow
+            Action:
+              - ec2:DeleteDhcpOptions
+            Resource: "arn:aws:ec2:*:*:dhcp-options/*"
+          -
+            Sid: VPC2
+            Effect: Allow
+            Action:
+              - ec2:DeleteRoute
+              - ec2:CreateRoute
+              - ec2:DeleteRouteTable"
+            Resource: "arn:aws:ec2:*:*:route-table/*"
+          -
+            Sid: VPC3
+            Effect: Allow
+            Action:
+              - ec2:DeleteInternetGateway"
+            Resource: "arn:aws:ec2:*:*:internet-gateway/*"
+          -
+            Sid: "VPC4"
+            Effect: Allow
+            Action:
+              - ec2:AssociateDhcpOptions
+              - ec2:DeleteSubnet
+              - ec2:ReplaceRouteTableAssociation
+              - ec2:CreateNatGateway
+              - ec2:CreateRouteTable
+              - ec2:CreateVpc
+              - ec2:AttachInternetGateway
+              - ec2:DetachInternetGateway
+              - ec2:DisassociateRouteTable
+              - ec2:DisassociateSubnetCidrBlock
+              - ec2:AssociateVpcCidrBlock
+              - ec2:AssociateRouteTable
+              - ec2:DisassociateVpcCidrBlock
+              - ec2:ModifySubnetAttribute
+              - ec2:CreateDefaultSubnet
+              - ec2:CreateInternetGateway
+              - ec2:AssociateSubnetCidrBlock
+              - ec2:DeleteNatGateway
+              - ec2:ModifyVpcAttribute
+              - ec2:DeleteVpc
+              - ec2:CreateSubnet"
+            Resource: "*"
+##############################################################################
+
+
 Outputs:
   KopsCrossAccountRole:
     Description: ARN of kops admin role that is allowed to be assumed from Operations account
-    Value: !GetAtt KopsCrossAccountRole.Arn
+    Value: !If [IsAutoIAMMode, !GetAtt KopsCrossAccountRoleIsAutoIAMMode.Arn, !GetAtt KopsCrossAccountRoleIsNotAutoIAMMode.Arn]

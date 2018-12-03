@@ -41,6 +41,8 @@ Metadata:
       - IAMNewManagedPoliciesPath
       - AutoDeployCoreInfraJenkins
       - DevTestEnableAllResources
+
+
 Parameters:
     ProductDomainName:
         Description: Name of product domain (will be used as basis for other names)
@@ -120,7 +122,7 @@ Parameters:
       Description: Full ssh URL to configuration repository (starting with ssh://)
       Type: String
     AutoIAMMode:
-      Description: BH will be allowed to create IAM Policies on its own (requires IAM administrative permissions when deploying this template, create policies manually otherwise)
+      Description: IAM Policies will be created automatically (requires IAM administrative permissions when deploying this template, please pre-create policies manually otherwise)
       Type: String
       Default: true
       AllowedValues:
@@ -133,7 +135,7 @@ Parameters:
     IAMNewManagedPoliciesPath:
         Type: String
         Description: Optional path for new IAM Managed policies that will be attached to the BH (requires AutoIAMMode to be true), leave "/" if unsure
-        Default: "/test/"
+        Default: "/"
     AutoDeployCoreInfraJenkins:
       Description: After deploying Terraform BH, automatically deploy core-infra Jenkins via UserData (run manually via ssh otherwise)
       Type: String
@@ -157,6 +159,7 @@ Conditions:
     !Equals [false, !Ref AutoIAMMode]
   IsDevTestEnableAllResources:
     !Equals [true, !Ref DevTestEnableAllResources]
+
 
 Resources:
   BastionRoleIsAutoIAMMode:
@@ -287,7 +290,7 @@ Resources:
 
             terraform plan -var-file="../terraform.tfvars" -out=tfplan -input=false
 
-            #terraform apply -input=false tfplan
+            terraform apply -input=false tfplan
             popd
             '
           fi
