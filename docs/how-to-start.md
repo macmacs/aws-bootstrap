@@ -53,7 +53,7 @@ on a pair of AWS accounts (operations and application).
 
 3. Prepare you private configuration repository:
 
-* clone generic configuration repository  from github.com/kentrikos into your private repository (FIXME: "product-domain-generic" repo not yet created on github)
+* clone generic configuration repository from github.com/kentrikos/template-environment-configuration into your private repository
 * update Terraform configuration accordingly to top-level README.md file and comments in files listed
 
 4. Create TF state resources, Terraform Bastion Host (TF BH) and (optionally) IAM Policies on operations account:
