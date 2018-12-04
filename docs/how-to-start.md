@@ -100,8 +100,8 @@ on a pair of AWS accounts (operations and application).
 
 8. Create IAM Policies for Kubernetes cluster instances (masters and nodes) on both accounts:
 
-* use core-infra Jenkins job "Create_IAM_policies" (if you are not allowed to create policies directly it will just create json files for you that you can use in your internal procedures have policies created)
-* FIXME: describe for AutoIAMMode and manual mode
+* run 2 jobs on core-infra Jenkins ("Generate_IAM_Policies_Operations" and "Generate_IAM_Policies_Application")
+* if you are not allowed to create policies directly it will just create json files for you that you can use in your internal procedures to have policies created (requires proper configuration entry in configuration repository)
 
 9. Deploy Kubernetes cluster on operations account using core-infra Jenkins:
 
