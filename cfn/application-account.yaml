@@ -450,6 +450,10 @@ Resources:
               - iam:AddRoleToInstanceProfile
               - iam:ListInstanceProfilesForRole
               - iam:RemoveRoleFromInstanceProfile
+              - iam:CreatePolicy
+              - iam:DeletePolicy
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicyVersion
             Resource: "*"
 
   IAMManagedPolicyKopsManagementNodeS3:
