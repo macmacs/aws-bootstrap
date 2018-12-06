@@ -14,9 +14,11 @@ on a pair of AWS accounts (operations and application).
 
 3.1 Login with ec2-user to dev-host:
 
-3.3 [ec2-user@ip-10-6-39-55 jenkins-core-infra]$ terraform plan -input=false -destroy -var-file=../terraform.tfvars
+3.2 [ec2-user@ip-10-6-39-55 jenkins-core-infra]$ terraform plan -input=false -destroy -var-file=../terraform.tfvars
 
-3.2 [ec2-user@ip-10-6-39-55 ~]$ cd ~/terraform/bmw-tf-aws-product-domain-maps-env-test/operations/eu-central-1/jenkins-core-infra
+3.3 [ec2-user@ip-10-6-39-55 jenkins-core-infra]$ terraform destroy -input=false -var-file=../terraform.tfvars
+
+3.4 [ec2-user@ip-10-6-39-55 ~]$ cd ~/terraform/bmw-tf-aws-product-domain-maps-env-test/operations/eu-central-1/jenkins-core-infra
 
 4. [Operation_aws_account console] Destroy CF stack
 
@@ -40,3 +42,5 @@ Terraform acquires a state lock to protect the state from being written
 by multiple users at the same time. Please resolve the issue above and try
 again. For most commands, you can disable locking with the "-lock=false"
 flag, but this is not recommended.
+
+Solution: terraform destroy -input=false -var-file=../terraform.tfvars -lock=false
