@@ -14,11 +14,11 @@ on a pair of AWS accounts (operations and application).
 
 3.1 Login with ec2-user to dev-host:
 
-3.2 [ec2-user@ip-10-6-39-55 jenkins-core-infra]$ terraform plan -input=false -destroy -var-file=../terraform.tfvars
+3.2 [ec2-user@localhost jenkins-core-infra]$ terraform plan -input=false -destroy -var-file=../terraform.tfvars
 
-3.3 [ec2-user@ip-10-6-39-55 jenkins-core-infra]$ terraform destroy -input=false -var-file=../terraform.tfvars
+3.3 [ec2-user@localhost jenkins-core-infra]$ terraform destroy -input=false -var-file=../terraform.tfvars
 
-3.4 [ec2-user@ip-10-6-39-55 ~]$ cd ~/terraform/bmw-tf-aws-product-domain-maps-env-test/operations/eu-central-1/jenkins-core-infra
+3.4 [ec2-user@localhost ~]$ cd ~/terraform/product-domain-demo-env-test/operations/eu-central-1/jenkins-core-infra
 
 4. [Operation_aws_account console] Destroy CF stack
 
@@ -30,9 +30,9 @@ Error: Error locking state: Error acquiring the state lock: ConditionalCheckFail
 	status code: 400, request id: RBN5ECNCCTNB0JE4FR96LJNTS7VV4KQNSO5AEMVJF66Q9ASUAAJG
 Lock Info:
   ID:        cb43d95b-8e14-0d9d-9368-d937ac30de3b
-  Path:      tf-state-bootstrap-111860764813-ops-eu-central-1/tf/tf-aws-product-domain-maps-env-test/jenkins-core-infra/terraform.tfstate
+  Path:      tf-state-bootstrap-/.../jenkins-core-infra/terraform.tfstate
   Operation: OperationTypeApply
-  Who:       ec2-user@ip-10-6-39-55.eu-central-1.compute.internal
+  Who:       ec2-user@localhost.eu-central-1.compute.internal
   Version:   0.11.10
   Created:   2018-12-06 10:48:25.822692885 +0000 UTC
   Info:
