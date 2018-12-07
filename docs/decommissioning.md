@@ -13,12 +13,12 @@ In case you clean-up incomplete deployment please skip irrelevant steps.
 
 1. Remove Kubernetes (K8s) cluster on application account:
 
-* [JenkinsX] run "Kubernetes_Destroy_On_Application"
+* [JenkinsX] run job: "Kubernetes_Destroy_On_Application"
 * FIXME: currently there is no "destroy" job so "Kubernetes_Install_On_Application" job must be edited manually (see commented lines marked 'DESTROY')
 
 2. Remove K8s cluster from operations account:
 
-* [Jenkins Core-Infra] run "Kubernetes_Destroy"
+* [Jenkins Core-Infra] run job: "Kubernetes_Destroy"
 
 3. Remove bootstrap (core-infra) Jenkins from operations account:
 
