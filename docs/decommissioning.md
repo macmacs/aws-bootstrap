@@ -6,41 +6,62 @@ on a pair of AWS accounts (operations and application).
 
 ## STEPS:
 
-1. [JenkinsX] Run Kubernetes_Destroy job to remove application cluster
+These steps should be done in the given order to ensure proper decomissioning.
 
-2. [Jenkins Core-Infra] Run Kubernetes_Destroy job remove operation cluster
+In case you clean-up incomplete deployment please skip irrelevant steps.
 
-3. [Dev-host] Remove Jenkins Core-infra with terraform command
 
-3.1 Login with ec2-user to dev-host:
+1. Remove Kubernetes (K8s) cluster on application account:
 
-3.2 [ec2-user@localhost jenkins-core-infra]$ terraform plan -input=false -destroy -var-file=../terraform.tfvars
+* [JenkinsX] run "Kubernetes_Destroy_On_Application"
+* FIXME: currently there is no "destroy" job so "Kubernetes_Install_On_Application" job must be edited manually (see commented lines marked 'DESTROY')
 
-3.3 [ec2-user@localhost jenkins-core-infra]$ terraform destroy -input=false -var-file=../terraform.tfvars
+2. Remove K8s cluster from operations account:
 
-3.4 [ec2-user@localhost ~]$ cd ~/terraform/product-domain-demo-env-test/operations/eu-central-1/jenkins-core-infra
+* [Jenkins Core-Infra] run "Kubernetes_Destroy"
 
-4. [Operation_aws_account console] Destroy CF stack
+3. Remove bootstrap (core-infra) Jenkins from operations account:
+
+* SSH to TF BH as ec2-user and run the following commands:
+
+  ```
+  cd ~/terraform/NAME_OF_YOUR_CONFIGURATION_REPOSITORY/operations/AWS_REGION/jenkins-core-infra
+  terraform plan -destroy -input=false -var-file=../terraform.tfvars
+  terraform apply 
+  ```
+
+4. Destroy "bootstrap" CF stack on operations account:
+
+* use AWS console/CloudFormation
+
+5. Destroy "bootstrap" CF stack on application account:
+
+* use AWS console/CloudFormation
 
 
 ## TROUBLSHOOTING:
 
-1. Problem with state lock for Terraform resources
-Error: Error locking state: Error acquiring the state lock: ConditionalCheckFailedException: The conditional request failed
-	status code: 400, request id: RBN5ECNCCTNB0JE4FR96LJNTS7VV4KQNSO5AEMVJF66Q9ASUAAJG
-Lock Info:
-  ID:        cb43d95b-8e14-0d9d-9368-d937ac30de3b
-  Path:      tf-state-bootstrap-/.../jenkins-core-infra/terraform.tfstate
-  Operation: OperationTypeApply
-  Who:       ec2-user@localhost.eu-central-1.compute.internal
-  Version:   0.11.10
-  Created:   2018-12-06 10:48:25.822692885 +0000 UTC
-  Info:
+1. Problem with state lock for Terraform resources:
+
+* sample error message:
+
+  ```
+  Error: Error locking state: Error acquiring the state lock: ConditionalCheckFailedException: The conditional request failed
+      status code: 400, request id: RBN5ECNCCTNB0JE4FR96LJNTS7VV4KQNSO5AEMVJF66Q9ASUAAJG
+  Lock Info:
+    ID:        cb43d95b-8e14-0d9d-9368-d937ac30de3b
+    Path:      tf-state-bootstrap-/.../jenkins-core-infra/terraform.tfstate
+    Operation: OperationTypeApply
+    Who:       ec2-user@localhost.eu-central-1.compute.internal
+    Version:   0.11.10
+    Created:   2018-12-06 10:48:25.822692885 +0000 UTC
+    Info:
 
 
-Terraform acquires a state lock to protect the state from being written
-by multiple users at the same time. Please resolve the issue above and try
-again. For most commands, you can disable locking with the "-lock=false"
-flag, but this is not recommended.
+  Terraform acquires a state lock to protect the state from being written
+  by multiple users at the same time. Please resolve the issue above and try
+  again. For most commands, you can disable locking with the "-lock=false"
+  flag, but this is not recommended.
+  ```
 
-Solution: terraform destroy -input=false -var-file=../terraform.tfvars -lock=false
+  * solution: add `-lock=false` to your terraform command.
