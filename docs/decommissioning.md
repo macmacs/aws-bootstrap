@@ -64,4 +64,8 @@ In case you clean-up incomplete deployment please skip irrelevant steps.
   flag, but this is not recommended.
   ```
 
-  * solution: add `-lock=false` to your terraform command.
+  * workaround: add `-lock=false` to your terraform command.
+
+2. CloudFormation refuses to remove "bootstrap" stacks due to S3 bucket not being empty:
+
+* workaround: manually remove all objects from S3 `tf-state-YOUR_BUCKET` (inluding all versions - e.g. switch to 'Versions/Show')
