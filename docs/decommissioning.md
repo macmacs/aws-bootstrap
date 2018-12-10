@@ -26,8 +26,8 @@ In case you clean-up incomplete deployment please skip irrelevant steps.
 
   ```
   cd ~/terraform/NAME_OF_YOUR_CONFIGURATION_REPOSITORY/operations/AWS_REGION/jenkins-core-infra
-  terraform plan -destroy -input=false -var-file=../terraform.tfvars
-  terraform apply 
+  terraform plan -destroy -input=false -var-file=../terraform.tfvars -out=tfplan
+  terraform apply -input=false tfplan
   ```
 
 4. Destroy "bootstrap" CF stack on operations account:
